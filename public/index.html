@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌿 Customer 360</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #fff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #2E6A4F;
+      --accent-light: #d1fae5;
+      --border: #e2e8f0;
+      --error: #ef4444;
+      --warn: #f59e0b;
+      --shopify: #95BF47;
+      --loop: #8B5CF6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 10px; font-size: 13px; line-height: 1.4; }
+
+    .header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+    .header h2 { margin: 0; font-size: 14px; font-weight: 600; }
+    .header .sub { font-size: 11px; color: var(--muted); }
+
+    .card { background: var(--card); border-radius: 8px; padding: 12px; margin-bottom: 10px; border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .card-title { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    .segment-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+
+    .loyalty-wrap { margin: 8px 0 6px; }
+    .loyalty-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .loyalty-fill { height: 100%; border-radius: 3px; }
+    .loyalty-info { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+    .stat-box { text-align: center; padding: 8px; background: var(--bg); border-radius: 6px; }
+    .stat-val { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+    .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+    .tag-row { display: flex; flex-wrap: wrap; gap: 3px; margin: 6px 0; }
+    .tag { background: var(--accent-light); color: var(--accent); padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+
+    .metrics-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .metric-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 1px; }
+    .metric-val { font-size: 12px; font-weight: 500; }
+    .metric-warn { color: var(--warn); }
+
+    .order-row { padding: 7px 0; border-bottom: 1px solid var(--border); }
+    .order-row:last-child { border-bottom: none; }
+    .order-name { font-weight: 500; font-size: 12.5px; margin-bottom: 2px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .order-meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .items { list-style: none; margin: 3px 0 0; padding-left: 0; }
+    .items li { font-size: 12px; color: var(--muted); margin-bottom: 1px; }
+    .price { margin-left: auto; font-weight: 600; font-size: 12px; white-space: nowrap; }
+
+    .status { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+    .status.fulfilled { background: #d1fae5; color: #065f46; }
+    .status.unfulfilled { background: #fef3c7; color: #92400e; }
+    .status.cancelled { background: #fee2e2; color: #991b1b; }
+    .status.partial { background: #dbeafe; color: #1e40af; }
+    .status.refunded { background: #fee2e2; color: #991b1b; }
+    .status.active { background: #d1fae5; color: #065f46; }
+    .status.paused { background: #fef3c7; color: #92400e; }
+    .status.cancelled-sub { background: #fee2e2; color: #991b1b; }
+
+    .sub-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .sub-row:last-child { border-bottom: none; }
+    .cancel-reason { font-size: 10px; color: var(--muted); margin-top: 2px; font-style: italic; }
+
+    .refund-summary { font-size: 12px; color: var(--error); font-weight: 500; margin-bottom: 8px; }
+
+    .contact-line { font-size: 12px; color: var(--muted); }
+    .loading, .no-data { text-align: center; color: var(--muted); padding: 30px 0; font-size: 12px; }
+    .error { color: var(--error); background: #fef2f2; padding: 8px; border-radius: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span style="font-size:18px">🌿</span>
+    <div>
+      <h2>Customer 360</h2>
+      <div class="sub" id="contactInfo">Waiting for contact…</div>
+    </div>
+  </div>
+  <div id="app"><div class="loading">⏳ Fetching customer data…</div></div>
+
+<script>
+const app = document.getElementById('app');
+const contactInfo = document.getElementById('contactInfo');
+let fetched = false;
+
+window.addEventListener('message', (e) => {
+  try {
+    const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+    if (!data || data.event !== 'appContext') return;
+    const contact = data.data?.contact;
+    if (contact && (contact.email || contact.phone_number)) {
+      contactInfo.textContent = `${contact.name || ''}${contact.email ? ' · ' + contact.email : ''}${contact.phone_number ? ' · ' + contact.phone_number : ''}`;
+      fetchData(contact.email || '', contact.phone_number || '');
+    }
+  } catch (_) {}
+});
+
+setTimeout(() => window.parent.postMessage('chatwoot-dashboard-app:fetch-info', '*'), 300);
+
+setTimeout(() => {
+  if (!fetched) {
+    const p = new URLSearchParams(window.location.search);
+    const em = p.get('email') || p.get('contact[email]');
+    const ph = p.get('phone') || p.get('contact[phone]');
+    if (em || ph) fetchData(em || '', ph || '');
+    else app.innerHTML = '<div class="no-data">Open with a conversation in Chatwoot, or pass ?email=xxx to test.</div>';
+  }
+}, 5000);
+
+async function fetchData(email, phone) {
+  fetched = true;
+  app.innerHTML = '<div class="loading">⏳ Pulling customer context…</div>';
+  try {
+    const res = await fetch('/api/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, phone })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    render(data);
+  } catch (err) {
+    app.innerHTML = `<div class="error">⚠️ ${err.message}</div>`;
+  }
+}
+
+function render(data) {
+  const errors = data.errors || [];
+  const c = data.shopify;
+  const subs = data.loop || [];
+  const orders = c?.orders || [];
+  const refunds = c?.refunds || [];
+  const m = data.metrics;
+
+  if (!c?.customer && !subs.length) {
+    app.innerHTML = errors.length
+      ? `<div class="error">⚠️ ${errors.join('<br>')}</div>`
+      : '<div class="no-data">No records found.</div>';
+    return;
+  }
+
+  let html = '';
+  if (c?.customer) html += renderCustomerCard(c.customer, subs, m);
+  if (subs.length) html += renderSubsCard(subs);
+  if (orders.length) html += renderOrdersCard(orders);
+  if (m?.refundCount > 0 && refunds.length) html += renderRefundCard(refunds, m);
+  if (errors.length) html += `<div class="error">⚠️ ${errors.join('<br>')}</div>`;
+
+  app.innerHTML = html;
+}
+
+const SEG_STYLES = {
+  'VIP':            { bg: '#f3e8ff', color: '#7c3aed', border: '#d8b4fe' },
+  'Great Customer': { bg: '#d1fae5', color: '#2E6A4F', border: '#6ee7b7' },
+  'Regular':        { bg: '#f1f5f9', color: '#64748b', border: '#cbd5e1' },
+  'New':            { bg: '#dbeafe', color: '#3b82f6', border: '#93c5fd' },
+  'At Risk':        { bg: '#fef3c7', color: '#d97706', border: '#fcd34d' },
+  'Churned':        { bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },
+};
+
+function renderCustomerCard(cust, subs, m) {
+  const name = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || cust.email || 'Unknown';
+  const spent = parseFloat(cust.total_spent || 0);
+  const count = parseInt(cust.orders_count) || 0;
+  const aov = count ? spent / count : 0;
+
+  const seg = m?.segment || '';
+  const ss = SEG_STYLES[seg] || SEG_STYLES['Regular'];
+  const segBadge = seg
+    ? `<span class="segment-badge" style="background:${ss.bg};color:${ss.color};border:1px solid ${ss.border}">${seg}</span>`
+    : '';
+
+  let loyaltyHtml = '';
+  if (m?.loyaltyScore != null) {
+    const s = m.loyaltyScore;
+    const label = s >= 76 ? 'Excellent' : s >= 51 ? 'Good' : s >= 26 ? 'Average' : 'Low';
+    const color = s >= 76 ? '#2E6A4F' : s >= 51 ? '#3b82f6' : s >= 26 ? '#f59e0b' : '#ef4444';
+    loyaltyHtml = `<div class="loyalty-wrap">
+      <div class="loyalty-bar"><div class="loyalty-fill" style="width:${s}%;background:${color}"></div></div>
+      <div class="loyalty-info"><span>Loyalty</span><span style="color:${color};font-weight:600">${s} · ${label}</span></div>
+    </div>`;
+  }
+
+  const tagsHtml = m?.tags?.length
+    ? `<div class="tag-row">${m.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>`
+    : '';
+
+  const memberSince = cust.created_at ? fmtDate(cust.created_at) : '—';
+
+  let lastOrderHtml = '—';
+  if (m?.daysSinceLastOrder != null) {
+    const d = m.daysSinceLastOrder;
+    lastOrderHtml = d > 60
+      ? `<span class="metric-warn">⚠️ ${fmtDaysAgo(d)}</span>`
+      : fmtDaysAgo(d);
+  }
+
+  const activeSubs = subs.filter(s => s.status === 'ACTIVE').length;
+  const pausedSubs = subs.filter(s => s.status === 'PAUSED').length;
+  const subSummary = activeSubs > 0 && pausedSubs > 0
+    ? `${activeSubs} active, ${pausedSubs} paused`
+    : activeSubs > 0 ? `${activeSubs} active`
+    : pausedSubs > 0 ? `${pausedSubs} paused`
+    : `<span style="color:var(--muted)">none</span>`;
+
+  const refundHtml = m?.refundCount > 0
+    ? `<span class="metric-warn">${m.refundCount} refund${m.refundCount > 1 ? 's' : ''} ($${m.totalRefunded.toFixed(2)})</span>`
+    : `<span style="color:var(--muted)">none</span>`;
+
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+      <div style="font-weight:600;font-size:14px">${name}</div>
+      ${segBadge}
+    </div>
+    ${cust.email ? `<div class="contact-line">${cust.email}</div>` : ''}
+    ${cust.phone ? `<div class="contact-line">${cust.phone}</div>` : ''}
+    ${loyaltyHtml}
+    <div class="stats">
+      <div class="stat-box"><div class="stat-val">${count}</div><div class="stat-label">Orders</div></div>
+      <div class="stat-box"><div class="stat-val">$${spent.toFixed(2)}</div><div class="stat-label">Spent</div></div>
+      <div class="stat-box"><div class="stat-val">$${aov.toFixed(2)}</div><div class="stat-label">AOV</div></div>
+    </div>
+    ${tagsHtml}
+    <div class="metrics-row">
+      <div><div class="metric-label">Member since</div><div class="metric-val">${memberSince}</div></div>
+      <div><div class="metric-label">Last order</div><div class="metric-val">${lastOrderHtml}</div></div>
+      <div><div class="metric-label">Subscriptions</div><div class="metric-val">${subSummary}</div></div>
+      <div><div class="metric-label">Refunds</div><div class="metric-val">${refundHtml}</div></div>
+    </div>
+  </div>`;
+}
+
+function renderSubsCard(subs) {
+  let html = `<div class="card"><div class="card-title"><span class="dot" style="background:var(--loop)"></span>Loop Subscriptions</div>`;
+  subs.forEach(s => {
+    const sc = s.status === 'ACTIVE' ? 'active' : s.status === 'PAUSED' ? 'paused' : 'cancelled-sub';
+    const city = s.shipping_address?.city || '';
+    const cadence = fmtCadence(s.billingInterval, s.billingIntervalCount);
+    const cancelNote = s.cancellationReason
+      ? `<div class="cancel-reason">Reason: ${s.cancellationReason}</div>` : '';
+    html += `<div class="sub-row">
+      <div style="flex:1">
+        <div style="font-weight:500;font-size:12px">${s.product_title}${s.variant_title ? ` · ${s.variant_title}` : ''}</div>
+        ${cadence ? `<div style="font-size:11px;color:var(--muted)">${cadence}</div>` : ''}
+        ${cancelNote}
+      </div>
+      <div style="text-align:right;margin-left:8px">
+        <span class="status ${sc}">${s.status}</span>
+        ${city ? `<div style="font-size:10px;color:var(--muted);margin-top:3px">📍 ${city}</div>` : ''}
+      </div>
+    </div>`;
+  });
+  return html + `</div>`;
+}
+
+function renderOrdersCard(orders) {
+  const unique = [...new Map(orders.map(o => [o.id, o])).values()]
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 10);
+
+  let html = `<div class="card"><div class="card-title"><span class="dot" style="background:var(--shopify)"></span>Recent Orders</div>`;
+  unique.forEach(o => {
+    const st = o.fulfillment_status || 'unfulfilled';
+    const sc = st === 'fulfilled' ? 'fulfilled' : st === 'cancelled' ? 'cancelled' : st === 'partial' ? 'partial' : 'unfulfilled';
+    const isRefunded = o.financial_status === 'refunded';
+    const stdSources = ['web', 'pos', 'iphone', 'android', 'mobile_app'];
+    const isSubOrder = o.source_name && !stdSources.includes((o.source_name || '').toLowerCase());
+    html += `<div class="order-row">
+      <div class="order-name">
+        <b>${o.name}</b>
+        <span class="status ${sc}">${st}</span>
+        ${isSubOrder ? '<span title="Subscription order">🔄</span>' : ''}
+        ${isRefunded ? '<span title="Refunded" style="color:#ef4444">💰</span>' : ''}
+        <span class="price">$${parseFloat(o.total_price || 0).toFixed(2)}</span>
+      </div>
+      <div class="order-meta">${fmtDate(o.created_at)}</div>
+      ${o.line_items?.length ? `<ul class="items">${o.line_items.slice(0, 3).map(li => `<li>• x${li.quantity} ${li.variant_title || li.title}</li>`).join('')}</ul>` : ''}
+    </div>`;
+  });
+  return html + `</div>`;
+}
+
+function renderRefundCard(refunds, m) {
+  const pct = Math.round((m.refundRate || 0) * 100);
+  let html = `<div class="card">
+    <div class="card-title"><span style="font-size:12px">💰</span>&nbsp;Return History</div>
+    <div class="refund-summary">Refund Rate: ${pct}% (${m.refundCount} of ${m.orderCount} orders)</div>`;
+  refunds.forEach(r => {
+    html += `<div class="order-row">
+      <div class="order-name"><b>${r.order_name}</b> <span class="status refunded">refunded</span> <span class="price">$${parseFloat(r.total_price || 0).toFixed(2)}</span></div>
+      <div class="order-meta">${fmtDate(r.created_at)}</div>
+    </div>`;
+  });
+  return html + `</div>`;
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  return fmtDaysAgo(Math.max(0, Math.floor((Date.now() - new Date(d)) / 86400000)));
+}
+
+function fmtDaysAgo(days) {
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return '1 week ago';
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+  if (days < 60) return '1 month ago';
+  if (days < 365) return `${Math.floor(days / 30)} months ago`;
+  const y = Math.floor(days / 365);
+  return y === 1 ? '1 year ago' : `${y} years ago`;
+}
+
+function fmtCadence(interval, count) {
+  if (!interval) return '';
+  const c = parseInt(count) || 1;
+  const map = { WEEK: 'week', MONTH: 'month', YEAR: 'year', DAY: 'day' };
+  const unit = map[interval] || interval.toLowerCase();
+  return c === 1 ? `Every ${unit}` : `Every ${c} ${unit}s`;
+}
+</script>
+</body>
+</html>
