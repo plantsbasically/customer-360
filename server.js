@@ -138,9 +138,8 @@ app.post('/api/lookup', async (req, res) => {
             if (loopRes.ok) {
               const loopData = await loopRes.json();
               if (loopData.success && loopData.data) {
-                // Log first raw sub shape to Railway logs for debugging
-                if (loopData.data[0]) console.log('[Loop raw sub keys]', JSON.stringify(Object.keys(loopData.data[0])));
-                if (loopData.data[0]?.lines?.[0]) console.log('[Loop raw line[0] keys]', JSON.stringify(Object.keys(loopData.data[0].lines[0])));
+                // Dump first sub to Railway logs — remove once product title path confirmed
+                if (loopData.data[0]) console.log('[Loop sub[0]]', JSON.stringify(loopData.data[0]));
                 allSubs = loopData.data.map(s => {
                   const line = s.lines?.[0] || s.lineItems?.[0] || {};
                   const variant = line.variant || line.productVariant || {};
