@@ -137,15 +137,34 @@ app.post('/api/lookup', async (req, res) => {
             if (loopRes.ok) {
               const loopData = await loopRes.json();
               if (loopData.success && loopData.data) {
-                allSubs = loopData.data.map(s => ({
-                  id: s.id, shopifyId: s.shopifyId, status: s.status,
-                  product_title: s.product?.title || s.lines?.[0]?.variant?.product_title || 'Subscription',
-                  variant_title: s.lines?.[0]?.variant?.title || '',
-                  billingInterval: s.billingInterval,
-                  billingIntervalCount: s.billingIntervalCount || 1,
-                  cancellationReason: s.cancellationReason || null,
-                  shipping_address: s.shippingAddress
-                }));
+                // Log first raw sub shape to Railway logs for debugging
+                if (loopData.data[0]) console.log('[Loop raw sub keys]', JSON.stringify(Object.keys(loopData.data[0])));
+                if (loopData.data[0]?.lines?.[0]) console.log('[Loop raw line[0] keys]', JSON.stringify(Object.keys(loopData.data[0].lines[0])));
+                allSubs = loopData.data.map(s => {
+                  const line = s.lines?.[0] || s.lineItems?.[0] || {};
+                  const variant = line.variant || line.productVariant || {};
+                  const product_title =
+                    s.product?.title ||
+                    variant.product?.title ||
+                    line.product?.title ||
+                    variant.product_title ||
+                    line.product_title ||
+                    line.title ||
+                    s.productTitle ||
+                    'Subscription';
+                  const variant_title = variant.title || line.variantTitle || '';
+                  const status = (s.status || '').toUpperCase();
+                  return {
+                    id: s.id, shopifyId: s.shopifyId, status,
+                    product_title, variant_title,
+                    billingInterval: s.billingInterval,
+                    billingIntervalCount: s.billingIntervalCount || 1,
+                    cancellationReason: s.cancellationReason || s.cancelReason || null,
+                    shipping_address: s.shippingAddress
+                  };
+                });
+                const STATUS_ORDER = { ACTIVE: 0, PAUSED: 1, CANCELLED: 2, EXPIRED: 3 };
+                allSubs.sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
                 // Expose all non-expired subs to frontend; keep all for metric computation
                 result.loop = allSubs.filter(s => s.status !== 'EXPIRED');
               }
