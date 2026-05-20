@@ -73,6 +73,15 @@
 
     .refund-summary { font-size: 12px; color: var(--error); font-weight: 500; margin-bottom: 8px; }
 
+    .review-row { padding: 7px 0; border-bottom: 1px solid var(--border); }
+    .review-row:last-child { border-bottom: none; }
+    .review-stars { font-size: 13px; letter-spacing: 1px; }
+    .review-product { font-size: 12px; font-weight: 500; margin: 2px 0; }
+    .review-title { font-size: 12px; font-style: italic; color: var(--muted); }
+    .review-body { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .review-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 3px; }
+    .verified-badge { font-size: 10px; color: var(--accent); font-weight: 600; }
+
     .contact-line { font-size: 12px; color: var(--muted); }
     .loading, .no-data { text-align: center; color: var(--muted); padding: 30px 0; font-size: 12px; }
     .error { color: var(--error); background: #fef2f2; padding: 8px; border-radius: 6px; font-size: 12px; }
@@ -149,10 +158,13 @@ function render(data) {
     return;
   }
 
+  const reviews = data.judgeme || [];
+
   let html = '';
   if (c?.customer) html += renderCustomerCard(c.customer, subs, m);
   if (subs.length) html += renderSubsCard(subs);
   if (orders.length) html += renderOrdersCard(orders);
+  if (reviews.length) html += renderReviewsCard(reviews, m);
   if (m?.refundCount > 0 && refunds.length) html += renderRefundCard(refunds, m);
   if (errors.length) html += `<div class="error">⚠️ ${errors.join('<br>')}</div>`;
 
@@ -302,6 +314,37 @@ function renderRefundCard(refunds, m) {
     </div>`;
   });
   return html + `</div>`;
+}
+
+function renderReviewsCard(reviews, m) {
+  const count = reviews.length;
+  const avg = m?.avgRating;
+  const avgDisplay = avg != null ? ` · avg ${avg}★` : '';
+  let html = `<div class="card">
+    <div class="card-title"><span style="color:#f59e0b">⭐</span>&nbsp;Reviews<span style="font-weight:400;text-transform:none;letter-spacing:0;margin-left:4px">${count} review${count !== 1 ? 's' : ''}${avgDisplay}</span></div>`;
+  reviews.slice(0, 5).forEach(r => {
+    const body = r.body ? esc(r.body).slice(0, 140) + (r.body.length > 140 ? '…' : '') : '';
+    html += `<div class="review-row">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="review-stars">${stars(r.rating)}</span>
+        ${r.verified ? '<span class="verified-badge">✓ Verified</span>' : ''}
+      </div>
+      <div class="review-product">${esc(r.product_title)}</div>
+      ${r.title ? `<div class="review-title">"${esc(r.title)}"</div>` : ''}
+      ${body ? `<div class="review-body">${body}</div>` : ''}
+      <div class="review-meta"><span class="order-meta">${fmtDate(r.created_at)}</span></div>
+    </div>`;
+  });
+  return html + `</div>`;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function stars(rating) {
+  const r = Math.max(0, Math.min(5, Math.round(rating || 0)));
+  return `<span style="color:#f59e0b">${'★'.repeat(r)}</span><span style="color:#d1d5db">${'★'.repeat(5 - r)}</span>`;
 }
 
 function fmtDate(d) {

@@ -6,6 +6,7 @@ const PORT = process.env.PORT || 3000;
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE_DOMAIN || 'plantsbasically.myshopify.com';
 const SHOPIFY_TOKEN = process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN;
 const LOOP_TOKEN = process.env.LOOP_API_KEY;
+const JUDGEME_TOKEN = process.env.JUDGEME_API_TOKEN;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -86,7 +87,7 @@ app.post('/api/lookup', async (req, res) => {
   const { email, phone } = req.body;
   if (!email && !phone) return res.status(400).json({ error: 'email or phone required' });
 
-  const result = { email, phone, shopify: null, loop: [], metrics: null, errors: [] };
+  const result = { email, phone, shopify: null, loop: [], judgeme: [], metrics: null, errors: [] };
 
   try {
     const query = email ? encodeURIComponent(`email:${email}`) : encodeURIComponent(`phone:${phone}`);
@@ -172,7 +173,40 @@ app.post('/api/lookup', async (req, res) => {
           } catch (e) { result.errors.push(`Loop: ${e.message}`); }
         }
 
+        // Judge.me — run after Loop; only needs email
+        if (JUDGEME_TOKEN) {
+          try {
+            const reviewEmail = email || customer.email;
+            const jmRes = await fetch(
+              `https://judge.me/api/v1/reviews?api_token=${JUDGEME_TOKEN}&shop_domain=${SHOPIFY_STORE}&reviewer_email=${encodeURIComponent(reviewEmail)}&per_page=20`
+            );
+            if (jmRes.ok) {
+              const jmData = await jmRes.json();
+              result.judgeme = (jmData.reviews || [])
+                .filter(r => !r.hidden)
+                .map(r => ({
+                  id: r.id,
+                  rating: r.rating,
+                  title: r.title,         // raw — frontend must HTML-escape
+                  body: r.body,           // raw — frontend must HTML-escape
+                  product_title: r.product_title,
+                  verified: r.verified === 'buyer',
+                  created_at: r.created_at,
+                  has_pictures: r.has_published_pictures
+                }));
+            }
+          } catch (e) { result.errors.push(`Judge.me: ${e.message}`); }
+        }
+
         result.metrics = computeMetrics(orders, allSubs);
+
+        // Augment metrics with review data
+        const reviews = result.judgeme;
+        result.metrics.reviewCount = reviews.length;
+        result.metrics.avgRating = reviews.length
+          ? parseFloat((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1))
+          : null;
+        if (reviews.length > 0) result.metrics.tags.push('⭐ Has Reviews');
       } else {
         result.errors.push('No Shopify customer found');
       }
