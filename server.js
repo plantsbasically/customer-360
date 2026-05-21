@@ -169,28 +169,39 @@ app.post('/api/lookup', async (req, res) => {
           } catch (e) { result.errors.push(`Loop: ${e.message}`); }
         }
 
-        // Judge.me — run after Loop; only needs email
+        // Judge.me — two-step: find reviewer by email, then fetch their reviews
         if (JUDGEME_TOKEN) {
           try {
             const reviewEmail = email || customer.email;
-            const jmRes = await fetch(
-              `https://judge.me/api/v1/reviews?api_token=${JUDGEME_TOKEN}&shop_domain=${SHOPIFY_STORE}&reviewer_email=${encodeURIComponent(reviewEmail)}&per_page=20`
+            const base = `https://api.judge.me/api/v1`;
+            const qs = `api_token=${JUDGEME_TOKEN}&shop_domain=${SHOPIFY_STORE}`;
+
+            const reviewerRes = await fetch(
+              `${base}/reviewers/-1?${qs}&email=${encodeURIComponent(reviewEmail)}`
             );
-            if (jmRes.ok) {
-              const jmData = await jmRes.json();
-              console.log('[JudgeMe]', jmRes.status, 'total:', jmData.reviews?.length ?? 0, 'hidden:', (jmData.reviews||[]).filter(r=>r.hidden).length);
-              result.judgeme = (jmData.reviews || [])
-                .filter(r => !r.hidden)
-                .map(r => ({
-                  id: r.id,
-                  rating: r.rating,
-                  title: r.title,         // raw — frontend must HTML-escape
-                  body: r.body,           // raw — frontend must HTML-escape
-                  product_title: r.product_title,
-                  verified: r.verified === 'buyer',
-                  created_at: r.created_at,
-                  has_pictures: r.has_published_pictures
-                }));
+            if (reviewerRes.ok) {
+              const reviewerData = await reviewerRes.json();
+              const reviewerId = reviewerData.reviewer?.id;
+              if (reviewerId) {
+                const reviewsRes = await fetch(
+                  `${base}/reviews?${qs}&reviewer_id=${reviewerId}&per_page=20`
+                );
+                if (reviewsRes.ok) {
+                  const reviewsData = await reviewsRes.json();
+                  result.judgeme = (reviewsData.reviews || [])
+                    .filter(r => !r.hidden)
+                    .map(r => ({
+                      id: r.id,
+                      rating: r.rating,
+                      title: r.title,
+                      body: r.body,
+                      product_title: r.product_title,
+                      verified: r.verified === 'buyer',
+                      created_at: r.created_at,
+                      has_pictures: r.has_published_pictures
+                    }));
+                }
+              }
             }
           } catch (e) { result.errors.push(`Judge.me: ${e.message}`); }
         }
