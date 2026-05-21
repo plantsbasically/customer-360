@@ -11,25 +11,29 @@ const JUDGEME_TOKEN = process.env.JUDGEME_API_TOKEN;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-function computeMetrics(orders, allSubs) {
+function computeMetrics(orders, allSubs, customerInfo = {}) {
   const now = new Date();
 
-  const lifetimeValue = orders.reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
-  const orderCount = orders.length;
+  // Use Shopify's authoritative totals when available — fetched orders may be a subset
+  const lifetimeValue = parseFloat(customerInfo.total_spent) || orders.reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
+  const orderCount = parseInt(customerInfo.orders_count) || orders.length;
   const averageOrderValue = orderCount > 0 ? lifetimeValue / orderCount : 0;
 
+  // Last order date from fetched orders (most recent will always be in the batch)
   const sorted = [...orders].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  const oldest = sorted[0];
   const newest = sorted[sorted.length - 1];
-  const daysSinceFirstOrder = oldest ? Math.floor((now - new Date(oldest.created_at)) / 86400000) : null;
   const daysSinceLastOrder = newest ? Math.floor((now - new Date(newest.created_at)) / 86400000) : null;
+
+  // Use customer account creation date — more reliable than oldest fetched order
+  const memberSince = customerInfo.created_at ? new Date(customerInfo.created_at) : null;
+  const daysSinceMemberJoined = memberSince ? Math.floor((now - memberSince) / 86400000) : null;
 
   const refundedOrders = orders.filter(o => o.financial_status === 'refunded');
   const refundCount = refundedOrders.length;
   const totalRefunded = parseFloat(
     refundedOrders.reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0).toFixed(2)
   );
-  const refundRate = orderCount > 0 ? parseFloat((refundCount / orderCount).toFixed(4)) : 0;
+  const refundRate = orders.length > 0 ? parseFloat((refundCount / orders.length).toFixed(4)) : 0;
   const refundRisk = refundRate > 0.5 || refundCount >= 3;
 
   const isSubscriber = allSubs.some(s => s.status === 'ACTIVE');
@@ -45,29 +49,31 @@ function computeMetrics(orders, allSubs) {
   if (orderCount > 2) loyaltyScore += 10;
   loyaltyScore = Math.round(Math.min(loyaltyScore, 100));
 
+  // Segment priority: Legend > Loyal > At Risk > Churned > Regular > New
   let segment;
-  if (loyaltyScore >= 70 && lifetimeValue >= 200) segment = 'VIP';
-  else if (loyaltyScore >= 50 && lifetimeValue >= 100) segment = 'Great Customer';
-  else if (wasSubscriber) segment = 'Churned';
+  if (orderCount >= 6) segment = 'Legend';
+  else if (orderCount >= 3) segment = 'Loyal';
   else if (orderCount >= 2 && daysSinceLastOrder !== null && daysSinceLastOrder >= 90) segment = 'At Risk';
+  else if (wasSubscriber) segment = 'Churned';
   else if (orderCount >= 2) segment = 'Regular';
-  else if (orderCount === 1 && daysSinceFirstOrder !== null && daysSinceFirstOrder < 60) segment = 'New';
+  else if (daysSinceMemberJoined !== null && daysSinceMemberJoined < 60) segment = 'New';
   else segment = 'Regular';
 
   const tags = [];
-  if (segment === 'VIP') tags.push('🌟 VIP');
+  if (segment === 'Legend') tags.push('🏆 Legend');
+  else if (segment === 'Loyal') tags.push('💚 Loyal');
   if (isSubscriber) tags.push('🔄 Active Subscriber');
   else if (pausedSubCount > 0) tags.push('⏸ Paused Subscriber');
   if (daysSinceLastOrder !== null && daysSinceLastOrder >= 60) tags.push('💤 Dormant');
-  if (daysSinceFirstOrder !== null && daysSinceFirstOrder < 60) tags.push('🆕 New Customer');
+  if (daysSinceMemberJoined !== null && daysSinceMemberJoined < 60) tags.push('🆕 New Customer');
   if (refundCount > 0) tags.push('🚩 Refund History');
-  if (orderCount >= 5) tags.push('📦 Heavy Buyer');
+  if (orderCount >= 10) tags.push('📦 Heavy Buyer');
 
   return {
     lifetimeValue: parseFloat(lifetimeValue.toFixed(2)),
     orderCount,
     averageOrderValue: parseFloat(averageOrderValue.toFixed(2)),
-    daysSinceFirstOrder,
+    daysSinceMemberJoined,
     daysSinceLastOrder,
     refundCount,
     totalRefunded,
@@ -172,6 +178,7 @@ app.post('/api/lookup', async (req, res) => {
             );
             if (jmRes.ok) {
               const jmData = await jmRes.json();
+              console.log('[JudgeMe]', jmRes.status, 'total:', jmData.reviews?.length ?? 0, 'hidden:', (jmData.reviews||[]).filter(r=>r.hidden).length);
               result.judgeme = (jmData.reviews || [])
                 .filter(r => !r.hidden)
                 .map(r => ({
@@ -188,7 +195,11 @@ app.post('/api/lookup', async (req, res) => {
           } catch (e) { result.errors.push(`Judge.me: ${e.message}`); }
         }
 
-        result.metrics = computeMetrics(orders, allSubs);
+        result.metrics = computeMetrics(orders, allSubs, {
+          orders_count: customer.orders_count,
+          total_spent: customer.total_spent,
+          created_at: customer.created_at
+        });
 
         // Augment metrics with review data
         const reviews = result.judgeme;

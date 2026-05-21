@@ -172,12 +172,12 @@ function render(data) {
 }
 
 const SEG_STYLES = {
-  'VIP':            { bg: '#f3e8ff', color: '#7c3aed', border: '#d8b4fe' },
-  'Great Customer': { bg: '#d1fae5', color: '#2E6A4F', border: '#6ee7b7' },
-  'Regular':        { bg: '#f1f5f9', color: '#64748b', border: '#cbd5e1' },
-  'New':            { bg: '#dbeafe', color: '#3b82f6', border: '#93c5fd' },
-  'At Risk':        { bg: '#fef3c7', color: '#d97706', border: '#fcd34d' },
-  'Churned':        { bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },
+  'Legend':  { bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
+  'Loyal':   { bg: '#d1fae5', color: '#2E6A4F', border: '#6ee7b7' },
+  'Regular': { bg: '#f1f5f9', color: '#64748b', border: '#cbd5e1' },
+  'New':     { bg: '#dbeafe', color: '#3b82f6', border: '#93c5fd' },
+  'At Risk': { bg: '#fef3c7', color: '#d97706', border: '#fcd34d' },
+  'Churned': { bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },
 };
 
 function renderCustomerCard(cust, subs, m) {
@@ -207,7 +207,7 @@ function renderCustomerCard(cust, subs, m) {
     ? `<div class="tag-row">${m.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>`
     : '';
 
-  const memberSince = cust.created_at ? fmtDate(cust.created_at) : '—';
+  const memberSince = m?.daysSinceMemberJoined != null ? fmtDaysAgo(m.daysSinceMemberJoined) : (cust.created_at ? fmtDate(cust.created_at) : '—');
 
   let lastOrderHtml = '—';
   if (m?.daysSinceLastOrder != null) {
