@@ -144,8 +144,12 @@ app.post('/api/lookup', async (req, res) => {
             if (loopRes.ok) {
               const loopData = await loopRes.json();
               if (loopData.success && loopData.data) {
+                const custEmail = (customer.email || '').toLowerCase();
                 allSubs = loopData.data
-                  .filter(s => String(s.customer?.shopifyId) === String(customer.id))
+                  .filter(s =>
+                    String(s.customer?.shopifyId) === String(customer.id) ||
+                    (s.customer?.email && s.customer.email.toLowerCase() === custEmail)
+                  )
                   .map(s => {
                     const line = s.lines?.[0] || {};
                     return {
